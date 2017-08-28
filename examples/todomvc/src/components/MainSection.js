@@ -1,18 +1,20 @@
 import React, { Component } from 'react'
 import PropTypes from 'prop-types'
+import Immuatble from 'immutable'
 import TodoItem from './TodoItem'
 import Footer from './Footer'
 import { SHOW_ALL, SHOW_COMPLETED, SHOW_ACTIVE } from '../constants/TodoFilters'
 
 const TODO_FILTERS = {
   [SHOW_ALL]: () => true,
-  [SHOW_ACTIVE]: todo => !todo.completed,
-  [SHOW_COMPLETED]: todo => todo.completed
+  [SHOW_ACTIVE]: todo => !todo.get('completed'),
+  [SHOW_COMPLETED]: todo => todo.get('completed')
 }
 
 export default class MainSection extends Component {
   static propTypes = {
-    todos: PropTypes.array.isRequired,
+    todos: PropTypes.instanceOf(Immuatble.List).isRequired,
+    // todos: PropTypes.array.isRequired,
     actions: PropTypes.object.isRequired
   }
 
@@ -28,11 +30,11 @@ export default class MainSection extends Component {
 
   renderToggleAll(completedCount) {
     const { todos, actions } = this.props
-    if (todos.length > 0) {
+    if (todos.size > 0) {
       return (
         <input className="toggle-all"
                type="checkbox"
-               checked={completedCount === todos.length}
+               checked={completedCount === todos.size}
                onChange={actions.completeAll} />
       )
     }
@@ -41,9 +43,10 @@ export default class MainSection extends Component {
   renderFooter(completedCount) {
     const { todos } = this.props
     const { filter } = this.state
-    const activeCount = todos.length - completedCount
+    // const activeCount = todos.length - completedCount
+    const activeCount = todos.size - completedCount
 
-    if (todos.length) {
+    if (todos.size) {
       return (
         <Footer completedCount={completedCount}
                 activeCount={activeCount}
@@ -58,9 +61,12 @@ export default class MainSection extends Component {
     const { todos, actions } = this.props
     const { filter } = this.state
 
-    const filteredTodos = todos.filter(TODO_FILTERS[filter])
-    const completedCount = todos.reduce((count, todo) =>
-      todo.completed ? count + 1 : count,
+    const filteredTodos = todos.filter(TODO_FILTERS[filter]) // 返回的还是Immutable List
+    const completedCount = todos.reduce((count, todo) => {
+      console.log('todo', todo)
+      return todo.get('completed') ? count + 1 : count
+      // todo.completed ? count + 1 : count,
+      },
       0
     )
 
@@ -69,7 +75,7 @@ export default class MainSection extends Component {
         {this.renderToggleAll(completedCount)}
         <ul className="todo-list">
           {filteredTodos.map(todo =>
-            <TodoItem key={todo.id} todo={todo} {...actions} />
+            <TodoItem key={todo.get('id')} todo={todo} {...actions} />
           )}
         </ul>
         {this.renderFooter(completedCount)}

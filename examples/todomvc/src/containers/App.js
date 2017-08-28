@@ -2,6 +2,7 @@ import React from 'react'
 import PropTypes from 'prop-types'
 import { bindActionCreators } from 'redux'
 import { connect } from 'react-redux'
+import Immutable from 'immutable'
 import Header from '../components/Header'
 import MainSection from '../components/MainSection'
 import * as TodoActions from '../actions'
@@ -14,12 +15,13 @@ const App = ({todos, actions}) => (
 )
 
 App.propTypes = {
-  todos: PropTypes.array.isRequired,
+  // todos: PropTypes.array.isRequired,
+  todos: PropTypes.instanceOf(Immutable.List).isRequired,
   actions: PropTypes.object.isRequired
 }
 
 const mapStateToProps = state => ({
-  todos: state.todos
+  todos: state.get('todos')
 })
 
 const mapDispatchToProps = dispatch => ({
