@@ -1,10 +1,8 @@
 /**
- *  Copyright (c) 2014-2015, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, Facebook, Inc.
  *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 // Used for setting prototype methods that IE8 chokes on.
@@ -37,17 +35,6 @@ export function SetRef(ref) {
 // the return of any subsequent call of this function.
 export function OwnerID() {}
 
-// http://jsperf.com/copy-array-inline
-export function arrCopy(arr, offset) {
-  offset = offset || 0;
-  const len = Math.max(0, arr.length - offset);
-  const newArr = new Array(len);
-  for (let ii = 0; ii < len; ii++) {
-    newArr[ii] = arr[ii + offset];
-  }
-  return newArr;
-}
-
 export function ensureSize(iter) {
   if (iter.size === undefined) {
     iter.size = iter.__iterate(returnTrue);
@@ -78,8 +65,11 @@ export function returnTrue() {
 }
 
 export function wholeSlice(begin, end, size) {
-  return (begin === 0 || (size !== undefined && begin <= -size)) &&
-    (end === undefined || (size !== undefined && end >= size));
+  return (
+    ((begin === 0 && !isNeg(begin)) ||
+      (size !== undefined && begin <= -size)) &&
+    (end === undefined || (size !== undefined && end >= size))
+  );
 }
 
 export function resolveBegin(begin, size) {
@@ -95,9 +85,14 @@ function resolveIndex(index, size, defaultIndex) {
   // http://www.ecma-international.org/ecma-262/6.0/#sec-toint32
   return index === undefined
     ? defaultIndex
-    : index < 0
-        ? size === Infinity ? size : Math.max(0, size + index) | 0
-        : size === undefined || size === index
-            ? index
-            : Math.min(size, index) | 0;
+    : isNeg(index)
+      ? size === Infinity ? size : Math.max(0, size + index) | 0
+      : size === undefined || size === index
+        ? index
+        : Math.min(size, index) | 0;
+}
+
+function isNeg(value) {
+  // Account for -0 which is negative, but not less than 0.
+  return value < 0 || (value === 0 && 1 / value === -Infinity);
 }

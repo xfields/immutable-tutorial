@@ -1,10 +1,8 @@
 /**
- *  Copyright (c) 2014-2015, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, Facebook, Inc.
  *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 export const ITERATE_KEYS = 0;
@@ -30,9 +28,9 @@ Iterator.KEYS = ITERATE_KEYS;
 Iterator.VALUES = ITERATE_VALUES;
 Iterator.ENTRIES = ITERATE_ENTRIES;
 
-Iterator.prototype.inspect = (Iterator.prototype.toSource = function() {
+Iterator.prototype.inspect = Iterator.prototype.toSource = function() {
   return this.toString();
-});
+};
 Iterator.prototype[ITERATOR_SYMBOL] = function() {
   return this;
 };
@@ -43,7 +41,7 @@ export function iteratorValue(type, k, v, iteratorResult) {
     ? (iteratorResult.value = value)
     : (iteratorResult = {
         value: value,
-        done: false
+        done: false,
       });
   return iteratorResult;
 }
@@ -66,7 +64,8 @@ export function getIterator(iterable) {
 }
 
 function getIteratorFn(iterable) {
-  const iteratorFn = iterable &&
+  const iteratorFn =
+    iterable &&
     ((REAL_ITERATOR_SYMBOL && iterable[REAL_ITERATOR_SYMBOL]) ||
       iterable[FAUX_ITERATOR_SYMBOL]);
   if (typeof iteratorFn === 'function') {

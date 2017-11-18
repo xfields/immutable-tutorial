@@ -1,10 +1,8 @@
 /**
- *  Copyright (c) 2014-2015, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, Facebook, Inc.
  *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 import { is } from '../is';
@@ -14,7 +12,7 @@ import {
   isKeyed,
   isIndexed,
   isAssociative,
-  isOrdered
+  isOrdered,
 } from '../Predicates';
 
 export default function deepEqual(a, b) {
@@ -43,10 +41,12 @@ export default function deepEqual(a, b) {
 
   if (isOrdered(a)) {
     const entries = a.entries();
-    return b.every((v, k) => {
-      const entry = entries.next().value;
-      return entry && is(entry[1], v) && (notAssociative || is(entry[0], k));
-    }) && entries.next().done;
+    return (
+      b.every((v, k) => {
+        const entry = entries.next().value;
+        return entry && is(entry[1], v) && (notAssociative || is(entry[0], k));
+      }) && entries.next().done
+    );
   }
 
   let flipped = false;

@@ -1,10 +1,8 @@
 /**
- *  Copyright (c) 2014-2015, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, Facebook, Inc.
  *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 import { KeyedCollection } from './Collection';
@@ -21,12 +19,12 @@ export class OrderedMap extends Map {
     return value === null || value === undefined
       ? emptyOrderedMap()
       : isOrderedMap(value)
-          ? value
-          : emptyOrderedMap().withMutations(map => {
-              const iter = KeyedCollection(value);
-              assertNotInfinite(iter.size);
-              iter.forEach((v, k) => map.set(k, v));
-            });
+        ? value
+        : emptyOrderedMap().withMutations(map => {
+            const iter = KeyedCollection(value);
+            assertNotInfinite(iter.size);
+            iter.forEach((v, k) => map.set(k, v));
+          });
   }
 
   static of(/*...values*/) {
@@ -122,8 +120,10 @@ function makeOrderedMap(map, list, ownerID, hash) {
 
 let EMPTY_ORDERED_MAP;
 export function emptyOrderedMap() {
-  return EMPTY_ORDERED_MAP ||
-    (EMPTY_ORDERED_MAP = makeOrderedMap(emptyMap(), emptyList()));
+  return (
+    EMPTY_ORDERED_MAP ||
+    (EMPTY_ORDERED_MAP = makeOrderedMap(emptyMap(), emptyList()))
+  );
 }
 
 function updateOrderedMap(omap, k, v) {
@@ -140,9 +140,13 @@ function updateOrderedMap(omap, k, v) {
     }
     if (list.size >= SIZE && list.size >= map.size * 2) {
       newList = list.filter((entry, idx) => entry !== undefined && i !== idx);
-      newMap = newList.toKeyedSeq().map(entry => entry[0]).flip().toMap();
+      newMap = newList
+        .toKeyedSeq()
+        .map(entry => entry[0])
+        .flip()
+        .toMap();
       if (omap.__ownerID) {
-        newMap.__ownerID = (newList.__ownerID = omap.__ownerID);
+        newMap.__ownerID = newList.__ownerID = omap.__ownerID;
       }
     } else {
       newMap = map.remove(k);

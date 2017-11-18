@@ -1,20 +1,30 @@
 /**
- *  Copyright (c) 2014-2015, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, Facebook, Inc.
  *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
+import { toJS } from './toJS';
 import { KeyedCollection } from './Collection';
 import { keyedSeqFromValue } from './Seq';
-import { MapPrototype } from './Map';
 import { List } from './List';
-import { ITERATOR_SYMBOL } from './Iterator';
+import { ITERATE_ENTRIES, ITERATOR_SYMBOL } from './Iterator';
 import { isRecord, IS_RECORD_SENTINEL } from './Predicates';
 import { CollectionPrototype } from './CollectionImpl';
 import { DELETE } from './TrieUtils';
+import { getIn } from './methods/getIn';
+import { setIn } from './methods/setIn';
+import { deleteIn } from './methods/deleteIn';
+import { update } from './methods/update';
+import { updateIn } from './methods/updateIn';
+import { merge, mergeWith } from './methods/merge';
+import { mergeDeep, mergeDeepWith } from './methods/mergeDeep';
+import { mergeIn } from './methods/mergeIn';
+import { mergeDeepIn } from './methods/mergeDeepIn';
+import { withMutations } from './methods/withMutations';
+import { asMutable } from './methods/asMutable';
+import { asImmutable } from './methods/asImmutable';
 
 import invariant from './utils/invariant';
 import quoteString from './utils/quoteString';
@@ -86,8 +96,12 @@ export class Record {
   }
 
   equals(other) {
-    return this === other ||
-      (this._keys === other._keys && recordSeq(this).equals(recordSeq(other)));
+    return (
+      this === other ||
+      (other &&
+        this._keys === other._keys &&
+        recordSeq(this).equals(recordSeq(other)))
+    );
   }
 
   hashCode() {
@@ -142,7 +156,11 @@ export class Record {
   }
 
   toJS() {
-    return recordSeq(this).toJS();
+    return toJS(this);
+  }
+
+  entries() {
+    return this.__iterator(ITERATE_ENTRIES);
   }
 
   __iterator(type, reverse) {
@@ -172,24 +190,27 @@ Record.getDescriptiveName = recordName;
 const RecordPrototype = Record.prototype;
 RecordPrototype[IS_RECORD_SENTINEL] = true;
 RecordPrototype[DELETE] = RecordPrototype.remove;
-RecordPrototype.deleteIn = (RecordPrototype.removeIn = MapPrototype.removeIn);
-RecordPrototype.getIn = CollectionPrototype.getIn;
+RecordPrototype.deleteIn = RecordPrototype.removeIn = deleteIn;
+RecordPrototype.getIn = getIn;
 RecordPrototype.hasIn = CollectionPrototype.hasIn;
-RecordPrototype.merge = MapPrototype.merge;
-RecordPrototype.mergeWith = MapPrototype.mergeWith;
-RecordPrototype.mergeIn = MapPrototype.mergeIn;
-RecordPrototype.mergeDeep = MapPrototype.mergeDeep;
-RecordPrototype.mergeDeepWith = MapPrototype.mergeDeepWith;
-RecordPrototype.mergeDeepIn = MapPrototype.mergeDeepIn;
-RecordPrototype.setIn = MapPrototype.setIn;
-RecordPrototype.update = MapPrototype.update;
-RecordPrototype.updateIn = MapPrototype.updateIn;
-RecordPrototype.withMutations = MapPrototype.withMutations;
-RecordPrototype.asMutable = MapPrototype.asMutable;
-RecordPrototype.asImmutable = MapPrototype.asImmutable;
-RecordPrototype[ITERATOR_SYMBOL] = CollectionPrototype.entries;
-RecordPrototype.toJSON = (RecordPrototype.toObject = CollectionPrototype.toObject);
-RecordPrototype.inspect = (RecordPrototype.toSource = CollectionPrototype.toSource);
+RecordPrototype.merge = merge;
+RecordPrototype.mergeWith = mergeWith;
+RecordPrototype.mergeIn = mergeIn;
+RecordPrototype.mergeDeep = mergeDeep;
+RecordPrototype.mergeDeepWith = mergeDeepWith;
+RecordPrototype.mergeDeepIn = mergeDeepIn;
+RecordPrototype.setIn = setIn;
+RecordPrototype.update = update;
+RecordPrototype.updateIn = updateIn;
+RecordPrototype.withMutations = withMutations;
+RecordPrototype.asMutable = asMutable;
+RecordPrototype.asImmutable = asImmutable;
+RecordPrototype[ITERATOR_SYMBOL] = RecordPrototype.entries;
+RecordPrototype.toJSON = RecordPrototype.toObject =
+  CollectionPrototype.toObject;
+RecordPrototype.inspect = RecordPrototype.toSource = function() {
+  return this.toString();
+};
 
 function makeRecord(likeRecord, values, ownerID) {
   const record = Object.create(Object.getPrototypeOf(likeRecord));
@@ -215,7 +236,7 @@ function setProp(prototype, name) {
       set: function(value) {
         invariant(this.__ownerID, 'Cannot set on an immutable record.');
         this.set(name, value);
-      }
+      },
     });
   } catch (error) {
     // Object.defineProperty failed. Probably IE8.

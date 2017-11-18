@@ -1,16 +1,13 @@
 /**
- *  Copyright (c) 2014-2015, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, Facebook, Inc.
  *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 import { is } from './is';
-import { fromJS } from './fromJS';
 import { Collection, KeyedCollection } from './Collection';
-import { isCollection, isOrdered } from './Predicates';
+import { isOrdered } from './Predicates';
 import {
   DELETE,
   SHIFT,
@@ -22,14 +19,24 @@ import {
   OwnerID,
   MakeRef,
   SetRef,
-  arrCopy
 } from './TrieUtils';
 import { hash } from './Hash';
 import { Iterator, iteratorValue, iteratorDone } from './Iterator';
 import { sortFactory } from './Operations';
-import coerceKeyPath from './utils/coerceKeyPath';
+import arrCopy from './utils/arrCopy';
 import assertNotInfinite from './utils/assertNotInfinite';
-import quoteString from './utils/quoteString';
+import { setIn } from './methods/setIn';
+import { deleteIn } from './methods/deleteIn';
+import { update } from './methods/update';
+import { updateIn } from './methods/updateIn';
+import { merge, mergeWith } from './methods/merge';
+import { mergeDeep, mergeDeepWith } from './methods/mergeDeep';
+import { mergeIn } from './methods/mergeIn';
+import { mergeDeepIn } from './methods/mergeDeepIn';
+import { withMutations } from './methods/withMutations';
+import { asMutable } from './methods/asMutable';
+import { asImmutable } from './methods/asImmutable';
+import { wasAltered } from './methods/wasAltered';
 
 import { OrderedMap } from './OrderedMap';
 
@@ -40,12 +47,12 @@ export class Map extends KeyedCollection {
     return value === null || value === undefined
       ? emptyMap()
       : isMap(value) && !isOrdered(value)
-          ? value
-          : emptyMap().withMutations(map => {
-              const iter = KeyedCollection(value);
-              assertNotInfinite(iter.size);
-              iter.forEach((v, k) => map.set(k, v));
-            });
+        ? value
+        : emptyMap().withMutations(map => {
+            const iter = KeyedCollection(value);
+            assertNotInfinite(iter.size);
+            iter.forEach((v, k) => map.set(k, v));
+          });
   }
 
   static of(...keyValues) {
@@ -77,20 +84,8 @@ export class Map extends KeyedCollection {
     return updateMap(this, k, v);
   }
 
-  setIn(keyPath, v) {
-    return this.updateIn(keyPath, NOT_SET, () => v);
-  }
-
   remove(k) {
     return updateMap(this, k, NOT_SET);
-  }
-
-  deleteIn(keyPath) {
-    keyPath = [...coerceKeyPath(keyPath)];
-    if (keyPath.length) {
-      const lastKey = keyPath.pop();
-      return this.updateIn(keyPath, c => c && c.remove(lastKey));
-    }
   }
 
   deleteAll(keys) {
@@ -103,27 +98,6 @@ export class Map extends KeyedCollection {
     return this.withMutations(map => {
       collection.forEach(key => map.remove(key));
     });
-  }
-
-  update(k, notSetValue, updater) {
-    return arguments.length === 1
-      ? k(this)
-      : this.updateIn([k], notSetValue, updater);
-  }
-
-  updateIn(keyPath, notSetValue, updater) {
-    if (!updater) {
-      updater = notSetValue;
-      notSetValue = undefined;
-    }
-    const updatedValue = updateInDeepMap(
-      this,
-      coerceKeyPath(keyPath),
-      0,
-      notSetValue,
-      updater
-    );
-    return updatedValue === NOT_SET ? notSetValue : updatedValue;
   }
 
   clear() {
@@ -142,44 +116,6 @@ export class Map extends KeyedCollection {
 
   // @pragma Composition
 
-  merge(/*...iters*/) {
-    return mergeIntoMapWith(this, undefined, arguments);
-  }
-
-  mergeWith(merger, ...iters) {
-    return mergeIntoMapWith(this, merger, iters);
-  }
-
-  mergeIn(keyPath, ...iters) {
-    return this.updateIn(
-      keyPath,
-      emptyMap(),
-      m =>
-        typeof m.merge === 'function'
-          ? m.merge.apply(m, iters)
-          : iters[iters.length - 1]
-    );
-  }
-
-  mergeDeep(/*...iters*/) {
-    return mergeIntoMapWith(this, deepMerger, arguments);
-  }
-
-  mergeDeepWith(merger, ...iters) {
-    return mergeIntoMapWith(this, deepMergerWith(merger), iters);
-  }
-
-  mergeDeepIn(keyPath, ...iters) {
-    return this.updateIn(
-      keyPath,
-      emptyMap(),
-      m =>
-        typeof m.mergeDeep === 'function'
-          ? m.mergeDeep.apply(m, iters)
-          : iters[iters.length - 1]
-    );
-  }
-
   sort(comparator) {
     // Late binding
     return OrderedMap(sortFactory(this, comparator));
@@ -192,24 +128,6 @@ export class Map extends KeyedCollection {
 
   // @pragma Mutability
 
-  withMutations(fn) {
-    const mutable = this.asMutable();
-    fn(mutable);
-    return mutable.wasAltered() ? mutable.__ensureOwner(this.__ownerID) : this;
-  }
-
-  asMutable() {
-    return this.__ownerID ? this : this.__ensureOwner(new OwnerID());
-  }
-
-  asImmutable() {
-    return this.__ensureOwner();
-  }
-
-  wasAltered() {
-    return this.__altered;
-  }
-
   __iterator(type, reverse) {
     return new MapIterator(this, type, reverse);
   }
@@ -217,13 +135,10 @@ export class Map extends KeyedCollection {
   __iterate(fn, reverse) {
     let iterations = 0;
     this._root &&
-      this._root.iterate(
-        entry => {
-          iterations++;
-          return fn(entry[1], entry[0], this);
-        },
-        reverse
-      );
+      this._root.iterate(entry => {
+        iterations++;
+        return fn(entry[1], entry[0], this);
+      }, reverse);
     return iterations;
   }
 
@@ -254,8 +169,27 @@ const IS_MAP_SENTINEL = '@@__IMMUTABLE_MAP__@@';
 export const MapPrototype = Map.prototype;
 MapPrototype[IS_MAP_SENTINEL] = true;
 MapPrototype[DELETE] = MapPrototype.remove;
-MapPrototype.removeIn = MapPrototype.deleteIn;
 MapPrototype.removeAll = MapPrototype.deleteAll;
+MapPrototype.setIn = setIn;
+MapPrototype.removeIn = MapPrototype.deleteIn = deleteIn;
+MapPrototype.update = update;
+MapPrototype.updateIn = updateIn;
+MapPrototype.merge = MapPrototype.concat = merge;
+MapPrototype.mergeWith = mergeWith;
+MapPrototype.mergeDeep = mergeDeep;
+MapPrototype.mergeDeepWith = mergeDeepWith;
+MapPrototype.mergeIn = mergeIn;
+MapPrototype.mergeDeepIn = mergeDeepIn;
+MapPrototype.withMutations = withMutations;
+MapPrototype.wasAltered = wasAltered;
+MapPrototype.asImmutable = asImmutable;
+MapPrototype['@@transducer/init'] = MapPrototype.asMutable = asMutable;
+MapPrototype['@@transducer/step'] = function(result, arr) {
+  return result.set(arr[0], arr[1]);
+};
+MapPrototype['@@transducer/result'] = function(obj) {
+  return obj.asImmutable();
+};
 
 // #pragma Trie Nodes
 
@@ -342,7 +276,7 @@ class BitmapIndexedNode {
     const bitmap = this.bitmap;
     return (bitmap & bit) === 0
       ? notSetValue
-      : this.nodes[popCount(bitmap & bit - 1)].get(
+      : this.nodes[popCount(bitmap & (bit - 1))].get(
           shift + SHIFT,
           keyHash,
           key,
@@ -363,7 +297,7 @@ class BitmapIndexedNode {
       return this;
     }
 
-    const idx = popCount(bitmap & bit - 1);
+    const idx = popCount(bitmap & (bit - 1));
     const nodes = this.nodes;
     const node = exists ? nodes[idx] : undefined;
     const newNode = updateNode(
@@ -386,7 +320,10 @@ class BitmapIndexedNode {
     }
 
     if (
-      exists && !newNode && nodes.length === 2 && isLeafNode(nodes[idx ^ 1])
+      exists &&
+      !newNode &&
+      nodes.length === 2 &&
+      isLeafNode(nodes[idx ^ 1])
     ) {
       return nodes[idx ^ 1];
     }
@@ -396,11 +333,11 @@ class BitmapIndexedNode {
     }
 
     const isEditable = ownerID && ownerID === this.ownerID;
-    const newBitmap = exists ? newNode ? bitmap : bitmap ^ bit : bitmap | bit;
+    const newBitmap = exists ? (newNode ? bitmap : bitmap ^ bit) : bitmap | bit;
     const newNodes = exists
       ? newNode
-          ? setIn(nodes, idx, newNode, isEditable)
-          : spliceOut(nodes, idx, isEditable)
+        ? setAt(nodes, idx, newNode, isEditable)
+        : spliceOut(nodes, idx, isEditable)
       : spliceIn(nodes, idx, newNode, isEditable);
 
     if (isEditable) {
@@ -469,7 +406,7 @@ class HashArrayMapNode {
     }
 
     const isEditable = ownerID && ownerID === this.ownerID;
-    const newNodes = setIn(nodes, idx, newNode, isEditable);
+    const newNodes = setAt(nodes, idx, newNode, isEditable);
 
     if (isEditable) {
       this.count = newCount;
@@ -599,7 +536,7 @@ class ValueNode {
 
 // #pragma Iterators
 
-ArrayMapNode.prototype.iterate = (HashCollisionNode.prototype.iterate = function(
+ArrayMapNode.prototype.iterate = HashCollisionNode.prototype.iterate = function(
   fn,
   reverse
 ) {
@@ -609,9 +546,9 @@ ArrayMapNode.prototype.iterate = (HashCollisionNode.prototype.iterate = function
       return false;
     }
   }
-});
+};
 
-BitmapIndexedNode.prototype.iterate = (HashArrayMapNode.prototype.iterate = function(
+BitmapIndexedNode.prototype.iterate = HashArrayMapNode.prototype.iterate = function(
   fn,
   reverse
 ) {
@@ -622,7 +559,7 @@ BitmapIndexedNode.prototype.iterate = (HashArrayMapNode.prototype.iterate = func
       return false;
     }
   }
-});
+};
 
 // eslint-disable-next-line no-unused-vars
 ValueNode.prototype.iterate = function(fn, reverse) {
@@ -663,12 +600,12 @@ class MapIterator extends Iterator {
             if (subNode.entry) {
               return mapIteratorValue(type, subNode.entry);
             }
-            stack = (this._stack = mapIteratorFrame(subNode, stack));
+            stack = this._stack = mapIteratorFrame(subNode, stack);
           }
           continue;
         }
       }
-      stack = (this._stack = this._stack.__prev);
+      stack = this._stack = this._stack.__prev;
     }
     return iteratorDone();
   }
@@ -682,7 +619,7 @@ function mapIteratorFrame(node, prev) {
   return {
     node: node,
     index: 0,
-    __prev: prev
+    __prev: prev,
   };
 }
 
@@ -726,7 +663,7 @@ function updateMap(map, k, v) {
     if (!didAlter.value) {
       return map;
     }
-    newSize = map.size + (didChangeSize.value ? v === NOT_SET ? -1 : 1 : 0);
+    newSize = map.size + (didChangeSize.value ? (v === NOT_SET ? -1 : 1) : 0);
   }
   if (map.__ownerID) {
     map.size = newSize;
@@ -768,8 +705,9 @@ function updateNode(
 }
 
 function isLeafNode(node) {
-  return node.constructor === ValueNode ||
-    node.constructor === HashCollisionNode;
+  return (
+    node.constructor === ValueNode || node.constructor === HashCollisionNode
+  );
 }
 
 function mergeIntoNode(node, ownerID, shift, keyHash, entry) {
@@ -781,13 +719,13 @@ function mergeIntoNode(node, ownerID, shift, keyHash, entry) {
   const idx2 = (shift === 0 ? keyHash : keyHash >>> shift) & MASK;
 
   let newNode;
-  const nodes = idx1 === idx2
-    ? [mergeIntoNode(node, ownerID, shift + SHIFT, keyHash, entry)]
-    : ((newNode = new ValueNode(ownerID, keyHash, entry)), idx1 < idx2
-        ? [node, newNode]
-        : [newNode, node]);
+  const nodes =
+    idx1 === idx2
+      ? [mergeIntoNode(node, ownerID, shift + SHIFT, keyHash, entry)]
+      : ((newNode = new ValueNode(ownerID, keyHash, entry)),
+        idx1 < idx2 ? [node, newNode] : [newNode, node]);
 
-  return new BitmapIndexedNode(ownerID, 1 << idx1 | 1 << idx2, nodes);
+  return new BitmapIndexedNode(ownerID, (1 << idx1) | (1 << idx2), nodes);
 }
 
 function createNodes(ownerID, entries, key, value) {
@@ -806,7 +744,7 @@ function packNodes(ownerID, nodes, count, excluding) {
   let bitmap = 0;
   let packedII = 0;
   const packedNodes = new Array(count);
-  for (let ii = 0, bit = 1, len = nodes.length; ii < len; ii++, (bit <<= 1)) {
+  for (let ii = 0, bit = 1, len = nodes.length; ii < len; ii++, bit <<= 1) {
     const node = nodes[ii];
     if (node !== undefined && ii !== excluding) {
       bitmap |= bit;
@@ -819,109 +757,23 @@ function packNodes(ownerID, nodes, count, excluding) {
 function expandNodes(ownerID, nodes, bitmap, including, node) {
   let count = 0;
   const expandedNodes = new Array(SIZE);
-  for (let ii = 0; bitmap !== 0; ii++, (bitmap >>>= 1)) {
+  for (let ii = 0; bitmap !== 0; ii++, bitmap >>>= 1) {
     expandedNodes[ii] = bitmap & 1 ? nodes[count++] : undefined;
   }
   expandedNodes[including] = node;
   return new HashArrayMapNode(ownerID, count + 1, expandedNodes);
 }
 
-function mergeIntoMapWith(map, merger, collections) {
-  const iters = [];
-  for (let ii = 0; ii < collections.length; ii++) {
-    const value = collections[ii];
-    let iter = KeyedCollection(value);
-    if (!isCollection(value)) {
-      iter = iter.map(v => fromJS(v));
-    }
-    iters.push(iter);
-  }
-  return mergeIntoCollectionWith(map, merger, iters);
-}
-
-export function deepMerger(oldVal, newVal) {
-  return oldVal && oldVal.mergeDeep && isCollection(newVal)
-    ? oldVal.mergeDeep(newVal)
-    : is(oldVal, newVal) ? oldVal : newVal;
-}
-
-export function deepMergerWith(merger) {
-  return (oldVal, newVal, key) => {
-    if (oldVal && oldVal.mergeDeepWith && isCollection(newVal)) {
-      return oldVal.mergeDeepWith(merger, newVal);
-    }
-    const nextValue = merger(oldVal, newVal, key);
-    return is(oldVal, nextValue) ? oldVal : nextValue;
-  };
-}
-
-export function mergeIntoCollectionWith(collection, merger, iters) {
-  iters = iters.filter(x => x.size !== 0);
-  if (iters.length === 0) {
-    return collection;
-  }
-  if (collection.size === 0 && !collection.__ownerID && iters.length === 1) {
-    return collection.constructor(iters[0]);
-  }
-  return collection.withMutations(collection => {
-    const mergeIntoMap = merger
-      ? (value, key) => {
-          collection.update(
-            key,
-            NOT_SET,
-            oldVal => oldVal === NOT_SET ? value : merger(oldVal, value, key)
-          );
-        }
-      : (value, key) => {
-          collection.set(key, value);
-        };
-    for (let ii = 0; ii < iters.length; ii++) {
-      iters[ii].forEach(mergeIntoMap);
-    }
-  });
-}
-
-function updateInDeepMap(existing, keyPath, i, notSetValue, updater) {
-  const isNotSet = existing === NOT_SET;
-  if (i === keyPath.length) {
-    const existingValue = isNotSet ? notSetValue : existing;
-    const newValue = updater(existingValue);
-    return newValue === existingValue ? existing : newValue;
-  }
-  if (!(isNotSet || (existing && existing.set))) {
-    throw new TypeError(
-      'Invalid keyPath: Value at [' +
-        keyPath.slice(0, i).map(quoteString) +
-        '] does not have a .set() method and cannot be updated: ' +
-        existing
-    );
-  }
-  const key = keyPath[i];
-  const nextExisting = isNotSet ? NOT_SET : existing.get(key, NOT_SET);
-  const nextUpdated = updateInDeepMap(
-    nextExisting,
-    keyPath,
-    i + 1,
-    notSetValue,
-    updater
-  );
-  return nextUpdated === nextExisting
-    ? existing
-    : nextUpdated === NOT_SET
-        ? existing.remove(key)
-        : (isNotSet ? emptyMap() : existing).set(key, nextUpdated);
-}
-
 function popCount(x) {
-  x -= x >> 1 & 0x55555555;
-  x = (x & 0x33333333) + (x >> 2 & 0x33333333);
-  x = x + (x >> 4) & 0x0f0f0f0f;
+  x -= (x >> 1) & 0x55555555;
+  x = (x & 0x33333333) + ((x >> 2) & 0x33333333);
+  x = (x + (x >> 4)) & 0x0f0f0f0f;
   x += x >> 8;
   x += x >> 16;
   return x & 0x7f;
 }
 
-function setIn(array, idx, val, canEdit) {
+function setAt(array, idx, val, canEdit) {
   const newArray = canEdit ? array : arrCopy(array);
   newArray[idx] = val;
   return newArray;

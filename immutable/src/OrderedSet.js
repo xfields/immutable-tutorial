@@ -1,10 +1,8 @@
 /**
- *  Copyright (c) 2014-2015, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, Facebook, Inc.
  *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 import { SetCollection, KeyedCollection } from './Collection';
@@ -21,12 +19,12 @@ export class OrderedSet extends Set {
     return value === null || value === undefined
       ? emptyOrderedSet()
       : isOrderedSet(value)
-          ? value
-          : emptyOrderedSet().withMutations(set => {
-              const iter = SetCollection(value);
-              assertNotInfinite(iter.size);
-              iter.forEach(v => set.add(v));
-            });
+        ? value
+        : emptyOrderedSet().withMutations(set => {
+            const iter = SetCollection(value);
+            assertNotInfinite(iter.size);
+            iter.forEach(v => set.add(v));
+          });
   }
 
   static of(/*...values*/) {
@@ -66,6 +64,7 @@ function makeOrderedSet(map, ownerID) {
 
 let EMPTY_ORDERED_SET;
 function emptyOrderedSet() {
-  return EMPTY_ORDERED_SET ||
-    (EMPTY_ORDERED_SET = makeOrderedSet(emptyOrderedMap()));
+  return (
+    EMPTY_ORDERED_SET || (EMPTY_ORDERED_SET = makeOrderedSet(emptyOrderedMap()))
+  );
 }

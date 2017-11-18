@@ -1,20 +1,19 @@
 /**
- *  Copyright (c) 2014-2015, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, Facebook, Inc.
  *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 import { wrapIndex } from './TrieUtils';
 import { Collection } from './Collection';
 import {
+  isImmutable,
   isCollection,
   isKeyed,
   isAssociative,
   isRecord,
-  IS_ORDERED_SENTINEL
+  IS_ORDERED_SENTINEL,
 } from './Predicates';
 import {
   Iterator,
@@ -22,22 +21,17 @@ import {
   iteratorDone,
   hasIterator,
   isIterator,
-  getIterator
+  getIterator,
 } from './Iterator';
 
+import hasOwnProperty from './utils/hasOwnProperty';
 import isArrayLike from './utils/isArrayLike';
 
 export class Seq extends Collection {
   constructor(value) {
     return value === null || value === undefined
       ? emptySequence()
-      : isCollection(value) || isRecord(value)
-          ? value.toSeq()
-          : seqFromValue(value);
-  }
-
-  static of(/*...values*/) {
-    return Seq(arguments);
+      : isImmutable(value) ? value.toSeq() : seqFromValue(value);
   }
 
   toSeq() {
@@ -98,8 +92,8 @@ export class KeyedSeq extends Seq {
     return value === null || value === undefined
       ? emptySequence().toKeyedSeq()
       : isCollection(value)
-          ? isKeyed(value) ? value.toSeq() : value.fromEntrySeq()
-          : isRecord(value) ? value.toSeq() : keyedSeqFromValue(value);
+        ? isKeyed(value) ? value.toSeq() : value.fromEntrySeq()
+        : isRecord(value) ? value.toSeq() : keyedSeqFromValue(value);
   }
 
   toKeyedSeq() {
@@ -109,13 +103,14 @@ export class KeyedSeq extends Seq {
 
 export class IndexedSeq extends Seq {
   constructor(value) {
+    debugger
     return value === null || value === undefined
       ? emptySequence()
       : isCollection(value)
-          ? isKeyed(value) ? value.entrySeq() : value.toIndexedSeq()
-          : isRecord(value)
-              ? value.toSeq().entrySeq()
-              : indexedSeqFromValue(value);
+        ? isKeyed(value) ? value.entrySeq() : value.toIndexedSeq()
+        : isRecord(value)
+          ? value.toSeq().entrySeq()
+          : indexedSeqFromValue(value);
   }
 
   static of(/*...values*/) {
@@ -135,7 +130,8 @@ export class SetSeq extends Seq {
   constructor(value) {
     return (isCollection(value) && !isAssociative(value)
       ? value
-      : IndexedSeq(value)).toSetSeq();
+      : IndexedSeq(value)
+    ).toSetSeq();
   }
 
   static of(/*...values*/) {
@@ -160,6 +156,7 @@ Seq.prototype[IS_SEQ_SENTINEL] = true;
 
 export class ArraySeq extends IndexedSeq {
   constructor(array) {
+    debugger
     this._array = array;
     this.size = array.length;
   }
@@ -211,7 +208,7 @@ class ObjectSeq extends KeyedSeq {
   }
 
   has(key) {
-    return this._object.hasOwnProperty(key);
+    return hasOwnProperty.call(this._object, key);
   }
 
   __iterate(fn, reverse) {
@@ -350,8 +347,8 @@ export function keyedSeqFromValue(value) {
   const seq = Array.isArray(value)
     ? new ArraySeq(value)
     : isIterator(value)
-        ? new IteratorSeq(value)
-        : hasIterator(value) ? new CollectionSeq(value) : undefined;
+      ? new IteratorSeq(value)
+      : hasIterator(value) ? new CollectionSeq(value) : undefined;
   if (seq) {
     return seq.fromEntrySeq();
   }
@@ -391,6 +388,6 @@ function maybeIndexedSeqFromValue(value) {
   return isArrayLike(value)
     ? new ArraySeq(value)
     : isIterator(value)
-        ? new IteratorSeq(value)
-        : hasIterator(value) ? new CollectionSeq(value) : undefined;
+      ? new IteratorSeq(value)
+      : hasIterator(value) ? new CollectionSeq(value) : undefined;
 }

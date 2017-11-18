@@ -1,18 +1,19 @@
 /**
- *  Copyright (c) 2014-2015, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, Facebook, Inc.
  *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 import { wholeSlice, resolveBegin, resolveEnd, wrapIndex } from './TrieUtils';
 import { IndexedCollection } from './Collection';
-import { MapPrototype } from './Map';
 import { ArraySeq } from './Seq';
 import { Iterator, iteratorValue, iteratorDone } from './Iterator';
 import assertNotInfinite from './utils/assertNotInfinite';
+import { asImmutable } from './methods/asImmutable';
+import { asMutable } from './methods/asMutable';
+import { wasAltered } from './methods/wasAltered';
+import { withMutations } from './methods/withMutations';
 
 export class Stack extends IndexedCollection {
   // @pragma Construction
@@ -57,7 +58,7 @@ export class Stack extends IndexedCollection {
     for (let ii = arguments.length - 1; ii >= 0; ii--) {
       head = {
         value: arguments[ii],
-        next: head
+        next: head,
       };
     }
     if (this.__ownerID) {
@@ -81,16 +82,13 @@ export class Stack extends IndexedCollection {
     assertNotInfinite(iter.size);
     let newSize = this.size;
     let head = this._head;
-    iter.__iterate(
-      value => {
-        newSize++;
-        head = {
-          value: value,
-          next: head
-        };
-      },
-      /* reverse */ true
-    );
+    iter.__iterate(value => {
+      newSize++;
+      head = {
+        value: value,
+        next: head,
+      };
+    }, /* reverse */ true);
     if (this.__ownerID) {
       this.size = newSize;
       this._head = head;
@@ -208,13 +206,19 @@ const IS_STACK_SENTINEL = '@@__IMMUTABLE_STACK__@@';
 
 const StackPrototype = Stack.prototype;
 StackPrototype[IS_STACK_SENTINEL] = true;
-StackPrototype.withMutations = MapPrototype.withMutations;
-StackPrototype.asMutable = MapPrototype.asMutable;
-StackPrototype.asImmutable = MapPrototype.asImmutable;
-StackPrototype.wasAltered = MapPrototype.wasAltered;
 StackPrototype.shift = StackPrototype.pop;
 StackPrototype.unshift = StackPrototype.push;
 StackPrototype.unshiftAll = StackPrototype.pushAll;
+StackPrototype.withMutations = withMutations;
+StackPrototype.wasAltered = wasAltered;
+StackPrototype.asImmutable = asImmutable;
+StackPrototype['@@transducer/init'] = StackPrototype.asMutable = asMutable;
+StackPrototype['@@transducer/step'] = function(result, arr) {
+  return result.unshift(arr);
+};
+StackPrototype['@@transducer/result'] = function(obj) {
+  return obj.asImmutable();
+};
 
 function makeStack(size, head, ownerID, hash) {
   const map = Object.create(StackPrototype);

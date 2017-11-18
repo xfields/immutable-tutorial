@@ -1,10 +1,8 @@
 /**
- *  Copyright (c) 2014-2015, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, Facebook, Inc.
  *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 import { Seq } from './Seq';
@@ -26,12 +24,29 @@ import {
   isIndexed,
   isAssociative,
   isOrdered,
-  isValueObject
+  isValueObject,
 } from './Predicates';
 import { Collection } from './CollectionImpl';
 import { hash } from './Hash';
 
+// Functional read/write API
+import { get } from './functional/get';
+import { getIn } from './functional/getIn';
+import { has } from './functional/has';
+import { hasIn } from './functional/hasIn';
+import { merge, mergeDeep, mergeWith, mergeDeepWith } from './functional/merge';
+import { remove } from './functional/remove';
+import { removeIn } from './functional/removeIn';
+import { set } from './functional/set';
+import { setIn } from './functional/setIn';
+import { update } from './functional/update';
+import { updateIn } from './functional/updateIn';
+
+import { version } from '../package.json';
+
 export default {
+  version: version,
+
   Collection: Collection,
   // Note: Iterable is deprecated
   Iterable: Collection,
@@ -58,13 +73,29 @@ export default {
   isIndexed: isIndexed,
   isAssociative: isAssociative,
   isOrdered: isOrdered,
-  isValueObject: isValueObject
+  isValueObject: isValueObject,
+
+  get: get,
+  getIn: getIn,
+  has: has,
+  hasIn: hasIn,
+  merge: merge,
+  mergeDeep: mergeDeep,
+  mergeWith: mergeWith,
+  mergeDeepWith: mergeDeepWith,
+  remove: remove,
+  removeIn: removeIn,
+  set: set,
+  setIn: setIn,
+  update: update,
+  updateIn: updateIn,
 };
 
 // Note: Iterable is deprecated
 const Iterable = Collection;
 
 export {
+  version,
   Collection,
   Iterable,
   Seq,
@@ -86,5 +117,19 @@ export {
   isIndexed,
   isAssociative,
   isOrdered,
-  isValueObject
+  isValueObject,
+  get,
+  getIn,
+  has,
+  hasIn,
+  merge,
+  mergeDeep,
+  mergeWith,
+  mergeDeepWith,
+  remove,
+  removeIn,
+  set,
+  setIn,
+  update,
+  updateIn,
 };

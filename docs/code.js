@@ -19,14 +19,13 @@ let arr = [1, 2, 3]
 arr.push(4) // [1, 2, 3, 4]
 
 // 可变数据的问题
-const func = arg => { ... }
+import func from 'somewhere'
 
-let str = 'abc'
 let obj = { a: 1 }
-//  场景1
 func(obj)
 console.log(obj)  // 输出什么？
 
+let str = 'abc'
 func(str)
 console.log(str)  // 输出'abc'
 
@@ -37,6 +36,28 @@ console.log(obj.a)  // 2
 
 
 // 如何使对象不可变
+import cloneDeep from 'lodash/cloneDeep'
+
+function operator (obj) {
+  const newObj = cloneDeep(obj)
+  newObj.xx = 'yy'
+  ...
+  return newObj
+}
+
+const obj = {a: 1, b: {c: 2}}
+Object.freeze(obj)
+const newObj = operator(obj)
+
+
+let obj = {
+  a: 1,
+  b: { c: 2 }
+}
+Object.freeze(obj)
+obj.a = 2        // {a: 1, b: {c: 2}}
+obj.b.c = 3      // {a: 1, b: {c: 3}}
+
 import cloneDeep from 'lodash/cloneDeep'
 let obj = { a: 1 }
 let obj1 = cloneDeep(obj)
@@ -65,3 +86,32 @@ console.log(map.toJS()) // { a: 1 }
 let arr = [1, 2, 3]
 const list = Immutable.fromJS(arr)
 console.log(list.toJS()) // [1, 2, 3]
+
+
+import shallowEqual from 'fbjs/lib/shallowEqual'
+
+shouldComponentUpdate(nextProps, nextState) {
+  return !shallowEqual(this.props, nextProps) ||
+    !shallowEqual(this.state, nextState);
+}
+
+props = {
+  entities: {
+    key: {
+      key1: 'value1',
+      key1: []
+    }
+  }
+}
+
+reducer (state, action) {
+  const newState = {...state}
+  newState.entites.key.key2.push(action.payload)
+  return newState
+}
+
+reducer (state, action) {
+  const entities = state.get('entities')
+  entities.key.key2.push(action.payload)
+  return state.set('entities', entities)
+}

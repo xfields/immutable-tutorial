@@ -1,10 +1,8 @@
 /**
- *  Copyright (c) 2014-2015, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, Facebook, Inc.
  *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 import { smi } from './Math';
@@ -43,7 +41,8 @@ export function hash(o) {
       : hashString(o);
   }
   if (typeof o.hashCode === 'function') {
-    return o.hashCode();
+    // Drop any high bits from accidentally long hash codes.
+    return smi(o.hashCode());
   }
   if (type === 'object') {
     return hashJSObj(o);
@@ -55,17 +54,17 @@ export function hash(o) {
 }
 
 function cachedHashString(string) {
-  let hash = stringHashCache[string];
-  if (hash === undefined) {
-    hash = hashString(string);
+  let hashed = stringHashCache[string];
+  if (hashed === undefined) {
+    hashed = hashString(string);
     if (STRING_HASH_CACHE_SIZE === STRING_HASH_CACHE_MAX_SIZE) {
       STRING_HASH_CACHE_SIZE = 0;
       stringHashCache = {};
     }
     STRING_HASH_CACHE_SIZE++;
-    stringHashCache[string] = hash;
+    stringHashCache[string] = hashed;
   }
-  return hash;
+  return hashed;
 }
 
 // http://jsperf.com/hashing-strings
@@ -76,46 +75,46 @@ function hashString(string) {
   // where s[i] is the ith character of the string and n is the length of
   // the string. We "mod" the result to make it between 0 (inclusive) and 2^31
   // (exclusive) by dropping high bits.
-  let hash = 0;
+  let hashed = 0;
   for (let ii = 0; ii < string.length; ii++) {
-    hash = 31 * hash + string.charCodeAt(ii) | 0;
+    hashed = (31 * hashed + string.charCodeAt(ii)) | 0;
   }
-  return smi(hash);
+  return smi(hashed);
 }
 
 function hashJSObj(obj) {
-  let hash;
+  let hashed;
   if (usingWeakMap) {
-    hash = weakMap.get(obj);
-    if (hash !== undefined) {
-      return hash;
+    hashed = weakMap.get(obj);
+    if (hashed !== undefined) {
+      return hashed;
     }
   }
 
-  hash = obj[UID_HASH_KEY];
-  if (hash !== undefined) {
-    return hash;
+  hashed = obj[UID_HASH_KEY];
+  if (hashed !== undefined) {
+    return hashed;
   }
 
   if (!canDefineProperty) {
-    hash = obj.propertyIsEnumerable && obj.propertyIsEnumerable[UID_HASH_KEY];
-    if (hash !== undefined) {
-      return hash;
+    hashed = obj.propertyIsEnumerable && obj.propertyIsEnumerable[UID_HASH_KEY];
+    if (hashed !== undefined) {
+      return hashed;
     }
 
-    hash = getIENodeHash(obj);
-    if (hash !== undefined) {
-      return hash;
+    hashed = getIENodeHash(obj);
+    if (hashed !== undefined) {
+      return hashed;
     }
   }
 
-  hash = ++objHashUID;
+  hashed = ++objHashUID;
   if (objHashUID & 0x40000000) {
     objHashUID = 0;
   }
 
   if (usingWeakMap) {
-    weakMap.set(obj, hash);
+    weakMap.set(obj, hashed);
   } else if (isExtensible !== undefined && isExtensible(obj) === false) {
     throw new Error('Non-extensible objects are not allowed as keys.');
   } else if (canDefineProperty) {
@@ -123,7 +122,7 @@ function hashJSObj(obj) {
       enumerable: false,
       configurable: false,
       writable: false,
-      value: hash
+      value: hashed,
     });
   } else if (
     obj.propertyIsEnumerable !== undefined &&
@@ -139,18 +138,18 @@ function hashJSObj(obj) {
         arguments
       );
     };
-    obj.propertyIsEnumerable[UID_HASH_KEY] = hash;
+    obj.propertyIsEnumerable[UID_HASH_KEY] = hashed;
   } else if (obj.nodeType !== undefined) {
     // At this point we couldn't get the IE `uniqueID` to use as a hash
     // and we couldn't use a non-enumerable property to exploit the
     // dontEnum bug so we simply add the `UID_HASH_KEY` on the node
     // itself.
-    obj[UID_HASH_KEY] = hash;
+    obj[UID_HASH_KEY] = hashed;
   } else {
     throw new Error('Unable to set a non-enumerable property on object.');
   }
 
-  return hash;
+  return hashed;
 }
 
 // Get references to ES5 object methods.

@@ -1,10 +1,8 @@
 /**
- *  Copyright (c) 2014-2015, Facebook, Inc.
- *  All rights reserved.
+ * Copyright (c) 2014-present, Facebook, Inc.
  *
- *  This source code is licensed under the BSD-style license found in the
- *  LICENSE file in the root directory of this source tree. An additional grant
- *  of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  */
 
 import { wrapIndex, wholeSlice, resolveBegin, resolveEnd } from './TrieUtils';
@@ -49,12 +47,14 @@ export class Range extends IndexedSeq {
     if (this.size === 0) {
       return 'Range []';
     }
-    return 'Range [ ' +
+    return (
+      'Range [ ' +
       this._start +
       '...' +
       this._end +
       (this._step !== 1 ? ' by ' + this._step : '') +
-      ' ]';
+      ' ]'
+    );
   }
 
   get(index, notSetValue) {
@@ -65,9 +65,11 @@ export class Range extends IndexedSeq {
 
   includes(searchValue) {
     const possibleIndex = (searchValue - this._start) / this._step;
-    return possibleIndex >= 0 &&
+    return (
+      possibleIndex >= 0 &&
       possibleIndex < this.size &&
-      possibleIndex === Math.floor(possibleIndex);
+      possibleIndex === Math.floor(possibleIndex)
+    );
   }
 
   slice(begin, end) {
